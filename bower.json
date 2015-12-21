@@ -1,0 +1,28 @@
+{
+  "name": "metadog",
+  "version": "0.0.1",
+  "description": "Sniffs out and fetches open graph and schema.org metadata from webpages.",
+  "keywords": [
+    "opengraph",
+    "schema",
+    "metadata",
+    "open",
+    "graph",
+    "schema.org"
+  ],
+  "homepage": "https://github.com/ShareRoot/metadog",
+  "license": "MIT",
+  "main": "metadog.js",
+  "moduleType": [
+    "amd",
+    "globals",
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

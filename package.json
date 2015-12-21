@@ -1,0 +1,23 @@
+{
+  "name": "metadog",
+  "version": "0.0.1",
+  "description": "Sniffs out and fetches open graph and schema.org metadata from webpages.",
+  "keywords": [
+    "opengraph",
+    "schema",
+    "metadata",
+    "open",
+    "graph",
+    "schema.org"
+  ],
+  "repository": "ShareRoot/metadog",
+  "homepage": "https://github.com/ShareRoot/metadog",
+  "bugs": {
+    "url": "https://github.com/ShareRoot/metadog/issues"
+  },
+  "license": "MIT",
+  "main": "metadog.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
