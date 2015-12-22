@@ -59,7 +59,7 @@
 				}
 			}
 			var itemprops = this._document.querySelectorAll('[itemprop]');
-			setProps.apply(this, itemprops);
+			setProps.call(this, itemprops);
 		};
 
 		Metadog.prototype._mapToModel = function() {
