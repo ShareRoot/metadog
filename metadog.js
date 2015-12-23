@@ -42,6 +42,7 @@
 		};
 
 		Metadog.prototype._fetchSchema = function() {
+			this._schemaData = {};
 			function setProps(set) {
 				for (var i = 0; i < set.length; i++) {
 					var itemprop = set[i].getAttribute('itemprop');
