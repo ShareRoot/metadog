@@ -259,6 +259,15 @@
 			
 			return this._deepCompare(proposed, current, myComparator, myFilters);
 		};
+		
+		/**
+		 * Get the schema data that was processed on the page
+		 * 
+		 * @returns {Object}
+		 */
+		Metadog.prototype.getSchemaData = function() {
+			return this._schemaData;
+		};
 
 		return Metadog;
 
