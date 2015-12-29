@@ -19,9 +19,12 @@
 		};
 
 		Metadog.prototype.scrape = function scrape() {
+			this._schemaData = {};
 			this._fetchOpenGraph();
 			this._fetchSchema();
 			this._mapToModel();
+			
+			
 			return this._metadata;
 		};
 
@@ -40,9 +43,9 @@
 				this._openGraphData[tags[i].getAttribute('property')] = tags[i].content;
 			}
 		};
-
+		
 		Metadog.prototype._fetchSchema = function() {
-			this._schemaData = {};
+			
 			function setProps(set) {
 				for (var i = 0; i < set.length; i++) {
 					var itemprop = set[i].getAttribute('itemprop');
@@ -50,17 +53,56 @@
 						itemprop = set[i].getAttribute('itemprop') + i;
 					}
 					if (set[i].getAttribute('content')) {
-						this._schemaData[itemprop] = set[i].getAttribute('content');
+						this._schemaData[itemprop] = set[i].getAttribute('content').replace(/[\t\r\n]+/g,"");
 					} else if (set[i].getAttribute('href') || set[i].getAttribute('src')) {
-
 						this._schemaData[itemprop] = set[i].href? set[i].href: set[i].src;
-					} else {
+					}
+					else {
 						this._schemaData[itemprop] = set[i].textContent;
 					}
 				}
 			}
+
+			// Iterate through the itemscopes
+			function setScope(set) {
+				var tmpStorage = {};
+
+				for (var i = 0; i < set.length; i++) {					
+					var prop;
+					if (set[i].getAttribute('itemprop')) {
+						prop = set[i].getAttribute('itemprop');
+					}
+					else {
+						prop = set[i].getAttribute('itemtype');
+					}
+					tmpStorage[prop] = [];
+					
+					var itemprops = set[i].querySelectorAll('[itemprop]');
+					for (var j = 0; j < itemprops.length; j++) {
+						var itemprop = itemprops[j].getAttribute('itemprop');
+						if (tmpStorage[prop][itemprop]){
+							itemprop = itemprops[j].getAttribute('itemprop') + j;
+						}
+						if (itemprops[j].getAttribute('content')) {
+							tmpStorage[prop][itemprop] = itemprops[j].getAttribute('content').replace(/(\t|\r|\n)/g,"");
+						} else if (itemprops[j].getAttribute('href') || itemprops[j].getAttribute('src')) {
+							tmpStorage[prop][itemprop] = itemprops[j].href? itemprops[j].href: itemprops[j].src;
+						}
+						else {
+							tmpStorage[prop][itemprop] = itemprops[j].textContent.replace(/(\t|\r|\n)/g,"");
+						}
+					}
+				}
+				this._schemaData['_itemscope'] = tmpStorage;
+			}
+			
+			// Process itemprops first
 			var itemprops = this._document.querySelectorAll('[itemprop]');
 			setProps.call(this, itemprops);
+			
+			// Process itemscopes
+			var itemscopes = this._document.querySelectorAll('[itemscope]');
+			setScope.call(this, itemscopes);
 		};
 
 		Metadog.prototype._mapToModel = function() {
@@ -137,7 +179,7 @@
 		
 		Metadog.prototype._filter = function(propToCheck) {
 			// List of fields to ignore.
-			var ignored = ['created', 'updated', 'ip', 'brand'];
+			var ignored = ['created', 'updated', 'ip', 'brand', 'breadcrumb', '_itemscope'];
 			
 			// Check the data passed in to see if we need to ignore that field.
 			return (ignored.indexOf(propToCheck) > 0 );
