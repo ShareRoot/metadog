@@ -9,9 +9,9 @@
 			return true;
 		}
 
-		var Metadog = function(options) {
+		var Metadog = function(document) {
 			//options takes in a document tree
-			this._document = options;
+			this._document = document;
 			this._metadata = {};
 			this._metadata.schema = [];
 			this._metadata.extra = {};
@@ -119,24 +119,42 @@
 			setParam.apply(this, ['og:priceCurrency', 'priceCurrency', 'priceCurrency', true]);
 			setParam.apply(this, ['og:availability', 'availability', 'availability', true]);
 		};
+		
+		Metadog.prototype._isEqual = function(arr1, arr2) {
+			if(arr1.length !== arr2.length)
+				return false;
+			arr1.sort();
+			arr2.sort();
+			for(var j = 0; j < arr1.length; j++) {
+				if(arr2[j].constructor === Array) {
+					this._isEqual(arr1[j], arr2[j]);
+				} else if(arr2.indexOf(arr1[j]) < 0) {
+					return false;
+				}
+			}
+			return true;
+		};
+		
+		Metadog.prototype._filter = function(propToCheck) {
+			// List of fields to ignore.
+			var ignored = ['created', 'updated', 'ip', 'brand'];
+			
+			// Check the data passed in to see if we need to ignore that field.
+			return (ignored.indexOf(propToCheck) > 0 );
+		};
 
-		Metadog.prototype._deepCompare = function(proposed, current) {
+		/**
+		 * Internal deep compare method.
+		 * 
+		 * @param proposed
+		 * @param current
+		 * @param comparator
+		 * @param filters
+		 * @returns {Boolean}
+		 */
+		Metadog.prototype._deepCompare = function(proposed, current, comparator, filters) {
 			//TODO: currently checks against values directly. Need to implement check for Array types and Object types
 			//Objects will have the same method called on them recursively
-			function isEqual(arr1, arr2) {
-				if(arr1.length !== arr2.length)
-					return false;
-				arr1.sort();
-				arr2.sort();
-				for(var j = 0; j < arr1.length; j++) {
-					if(arr2[j].constructor === Array) {
-						isEqual(arr1[j], arr2[j]);
-					} else if(arr2.indexOf(arr1[j]) < 0) {
-						return false;
-					}
-				}
-				return true;
-			}
 			var proposedProps = Object.getOwnPropertyNames(proposed);
 			var currentProps = Object.getOwnPropertyNames(current);
 
@@ -144,28 +162,60 @@
 				return false;
 
 			for(var i = 0; i < proposedProps.length; i++) {
-				var ignored = ['created', 'updated', 'ip', 'brand'];
+				
 				var propToCheck = proposedProps[i];
 				//skips over ignored properties
-				if (ignored.indexOf(propToCheck) > 0 ) {
+				if (filters(propToCheck)) 
 					continue;
-				}
+				
 				var prop1 = proposed[propToCheck];
 				var prop2 = current[propToCheck];
 				if(prop1.constructor === Array) {
-					if (!isEqual(prop1, prop2))
+					if (!comparator(prop1, prop2))
 						return false;
-				} else if (typeof prop1 === "object") {
-					if (this._deepCompare(prop1, prop2)){
+				} 
+				else if (typeof prop1 === "object") {
+					if (this._deepCompare(prop1, prop2, comparator, filters)){
 						continue;
-					} else {
+					} 
+					else {
 						return false;
 					}
-				} else if(prop1 !== prop2) {
+				} 
+				else if(prop1 !== prop2) {
 					return false;
 				}
 			}
 			return true;
+		};
+		
+		/**
+		 * This method performs a deep compare between two objects.
+		 * If comparator and/or filter parameters are not set, then the default class comparator object _isEqual is used 
+		 * and the default class filter object _filter is used.
+		 *  
+		 * @method deepCompare
+		 * @param {Object} proposed New Object to compare
+		 * @param {Object} current Current (or old) object to compare
+		 * @param {Function} comparator Function that performs the comparing
+		 * @param {Function} filters Function the performs filtering on fields to ignore
+		 * @returns {Boolean}
+		 */
+		Metadog.prototype.deepCompare = function(proposed, current, comparator, filters) {
+			// We need to make sure that comparator and filters is set as an object Function.
+			var theFilterType = {};
+			var myComparator = this._isEqual;
+			var myFilters = this._filter;
+			
+			if (comparator && theFilterType.toString.call(comparator) === '[object Function]') {
+				myComparator = comparator;
+			}
+			
+			if (filters && theFilterType.toString.call(filters) === '[object Function]') {
+				myFilters = filters;
+			}
+			
+			return this._deepCompare(proposed, current, myComparator, myFilters);
 		};
 
 		return Metadog;
