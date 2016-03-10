@@ -33,7 +33,7 @@
 			this._fetchOpenGraph();
 			this._fetchSchema();
 			this._mapToModel();
-			
+
 			return this._metadata;
 		};
 
@@ -54,7 +54,7 @@
 		};
 
 		Metadog.prototype._fetchSchema = function() {
-			
+
 			function setProps(set) {
 				for (var i = 0; i < set.length; i++) {
 					var itemprop = set[i].getAttribute('itemprop');
@@ -76,7 +76,7 @@
 			function setScope(set) {
 				var tmpStorage = {};
 
-				for (var i = 0; i < set.length; i++) {					
+				for (var i = 0; i < set.length; i++) {
 					var prop;
 					if (set[i].getAttribute('itemprop')) {
 						prop = set[i].getAttribute('itemprop');
@@ -85,7 +85,7 @@
 						prop = set[i].getAttribute('itemtype');
 					}
 					tmpStorage[prop] = [];
-					
+
 					var itemprops = set[i].querySelectorAll('[itemprop]');
 					for (var j = 0; j < itemprops.length; j++) {
 						var itemprop = itemprops[j].getAttribute('itemprop');
@@ -104,14 +104,16 @@
 				}
 				this._schemaData['_itemscope'] = tmpStorage;
 			}
-			
+
 			// Process itemprops first
 			var itemprops = this._document.querySelectorAll('[itemprop]');
-			setProps.call(this, itemprops);
-			
+			if (itemprops.length > 0)
+				setProps.call(this, itemprops);
+
 			// Process itemscopes
 			var itemscopes = this._document.querySelectorAll('[itemscope]');
-			setScope.call(this, itemscopes);
+			if (itemscopes.length > 0)
+				setScope.call(this, itemscopes);
 		};
 
 		Metadog.prototype._mapToModel = function() {
@@ -170,7 +172,7 @@
 			setParam.apply(this, ['og:priceCurrency', 'priceCurrency', 'priceCurrency', true]);
 			setParam.apply(this, ['og:availability', 'availability', 'availability', true]);
 		};
-		
+
 		Metadog.prototype._isEqual = function(arr1, arr2) {
 			if(arr1.length !== arr2.length)
 				return false;
@@ -185,18 +187,18 @@
 			}
 			return true;
 		};
-		
+
 		Metadog.prototype._filter = function(propToCheck) {
 			// List of fields to ignore.
 			var ignored = ['created', 'updated', 'ip', 'brand', 'breadcrumb', '_itemscope'];
-			
+
 			// Check the data passed in to see if we need to ignore that field.
 			return (ignored.indexOf(propToCheck) > 0 );
 		};
 
 		/**
 		 * Internal deep compare method.
-		 * 
+		 *
 		 * @param proposed
 		 * @param current
 		 * @param comparator
@@ -213,38 +215,38 @@
 				return false;
 
 			for(var i = 0; i < proposedProps.length; i++) {
-				
+
 				var propToCheck = proposedProps[i];
 				//skips over ignored properties
-				if (filters(propToCheck)) 
+				if (filters(propToCheck))
 					continue;
-				
+
 				var prop1 = proposed[propToCheck];
 				var prop2 = current[propToCheck];
 				if(prop1.constructor === Array) {
 					if (!comparator(prop1, prop2))
 						return false;
-				} 
+				}
 				else if (typeof prop1 === "object") {
 					if (this._deepCompare(prop1, prop2, comparator, filters)){
 						continue;
-					} 
+					}
 					else {
 						return false;
 					}
-				} 
+				}
 				else if(prop1 !== prop2) {
 					return false;
 				}
 			}
 			return true;
 		};
-		
+
 		/**
 		 * This method performs a deep compare between two objects.
-		 * If comparator and/or filter parameters are not set, then the default class comparator object _isEqual is used 
+		 * If comparator and/or filter parameters are not set, then the default class comparator object _isEqual is used
 		 * and the default class filter object _filter is used.
-		 *  
+		 *
 		 * @method deepCompare
 		 * @param {Object} proposed New Object to compare
 		 * @param {Object} current Current (or old) object to compare
@@ -257,21 +259,21 @@
 			var theFilterType = {};
 			var myComparator = this._isEqual;
 			var myFilters = this._filter;
-			
+
 			if (comparator && theFilterType.toString.call(comparator) === '[object Function]') {
 				myComparator = comparator;
 			}
-			
+
 			if (filters && theFilterType.toString.call(filters) === '[object Function]') {
 				myFilters = filters;
 			}
-			
+
 			return this._deepCompare(proposed, current, myComparator, myFilters);
 		};
-		
+
 		/**
 		 * Get the schema data that was processed on the page
-		 * 
+		 *
 		 * @returns {Object}
 		 */
 		Metadog.prototype.getSchemaData = function() {
