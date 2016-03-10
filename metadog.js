@@ -13,9 +13,19 @@
 			//options takes in a document tree
 			this._document = document;
 			this._metadata = {};
-			this._metadata.schema = [];
 			this._metadata.extra = {};
 			this._metadata.extra.errors = [];
+
+			this.schemaConst = {
+				'_none'          : 0,
+				'_direct'        : (1<<1),
+				'_openGraphData' : (1<<2),
+				'_schemaData'    : (1<<3),
+				'_oembed'        : (1<<4),
+				'_goodRelations' : (1<<5)
+			}
+
+			this._metadata.schema = this.schemaConst['_none'];
 		};
 
 		Metadog.prototype.scrape = function scrape() {
@@ -23,7 +33,6 @@
 			this._fetchOpenGraph();
 			this._fetchSchema();
 			this._mapToModel();
-			
 			
 			return this._metadata;
 		};
@@ -43,7 +52,7 @@
 				this._openGraphData[tags[i].getAttribute('property')] = tags[i].content;
 			}
 		};
-		
+
 		Metadog.prototype._fetchSchema = function() {
 			
 			function setProps(set) {
@@ -131,12 +140,12 @@
 			var schema = false;
 
 			if (!isEmpty(this._openGraphData)) {
-				this._metadata.schema.push(0);
+				this._metadata.schema = this.schemaConst['_openGraphData'];
 				opengraph = true;
 			}
 
 			if (!isEmpty(this._schemaData)) {
-				this._metadata.schema.push(1);
+				this._metadata.schema = this.schemaConst['_schemaData'];
 				schema = true;
 			}
 
