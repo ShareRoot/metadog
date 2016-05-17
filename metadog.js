@@ -289,13 +289,11 @@
 		module.exports = Metadog;
 	} else {
 		//  For AMD Support.
-		if (typeof define === 'function' && define.amd) {
-			define([], function() {
-
+		if (typeof define === 'function' && define.amd && (typeof window._metadogGlobal === 'undefined' ||  window._metadogGlobal !== true)) {
+			define('metadog', [], function() {
 				return Metadog;
 			});
 		} else {
-
 			// Export to the window scope, for Browser Support.
 			window.Metadog = Metadog;
 		}
