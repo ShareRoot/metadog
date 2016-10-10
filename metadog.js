@@ -23,13 +23,14 @@
 				'_schemaData'    : (1<<3),
 				'_oembed'        : (1<<4),
 				'_goodRelations' : (1<<5)
-			}
+			};
 
 			this._metadata.schema = this.schemaConst['_none'];
 		};
 
 		Metadog.prototype.scrape = function scrape() {
 			this._schemaData = {};
+			this._fetchJSON();
 			this._fetchOpenGraph();
 			this._fetchSchema();
 			this._mapToModel();
@@ -43,6 +44,15 @@
 				return link.href;
 			else
 				return false;
+		};
+
+		Metadog.prototype._fetchJSON = function() {
+			var data, tags = this._document.querySelectorAll('script[type="application/ld+json"]');
+			this._jsonData = {};
+			for (var i = 0; i < tags.length; i++) {
+				data = JSON.parse(tags[i].text);
+				this._jsonData[data['@type']] = data;
+			}
 		};
 
 		Metadog.prototype._fetchOpenGraph = function() {
