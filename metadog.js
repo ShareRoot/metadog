@@ -13,8 +13,6 @@
 			//options takes in a document tree
 			this._document = document;
 			this._metadata = {};
-			this._metadata.extra = {};
-			this._metadata.extra.errors = [];
 
 			this.schemaConst = {
 				'_none'          : 0,
@@ -28,12 +26,14 @@
 			this._metadata.schema = this.schemaConst['_none'];
 		};
 
-		Metadog.prototype.scrape = function scrape() {
+		Metadog.prototype.scrape = function scrape(mapping) {
+			this._jsonData = {};
 			this._schemaData = {};
+			this._openGraphData = {};
 			this._fetchJSON();
 			this._fetchOpenGraph();
 			this._fetchSchema();
-			this._mapToModel();
+			this._mapToModel(mapping);
 
 			return this._metadata;
 		};
@@ -47,17 +47,26 @@
 		};
 
 		Metadog.prototype._fetchJSON = function() {
-			var data, tags = this._document.querySelectorAll('script[type="application/ld+json"]');
-			this._jsonData = {};
+			var key, data, tags = this._document.querySelectorAll('script[type="application/ld+json"]');
+			var isSchema = false;
+
 			for (var i = 0; i < tags.length; i++) {
 				data = JSON.parse(tags[i].text);
-				this._jsonData[data['@type']] = data;
+				isSchema = data['@context'] && data['@context'].indexOf('schema.org') !== -1;
+				for (key in data) {
+					if(data.hasOwnProperty(key) && key[0] !== '@') {
+						if (isSchema)
+							this._schemaData[key] = data[key];
+						else
+							this._jsonData[key] = data[key];
+					}
+				}
 			}
 		};
 
 		Metadog.prototype._fetchOpenGraph = function() {
 			var tags = this._document.querySelectorAll('[property*="og:"]');
-			this._openGraphData = {};
+
 			for (var i = 0; i < tags.length; i++) {
 				this._openGraphData[tags[i].getAttribute('property')] = tags[i].content;
 			}
@@ -72,7 +81,7 @@
 						itemprop = set[i].getAttribute('itemprop') + i;
 					}
 					if (set[i].getAttribute('content')) {
-						this._schemaData[itemprop] = set[i].getAttribute('content').replace(/[\t\r\n]+/g,"");
+						this._schemaData[itemprop] = set[i].getAttribute('content').replace(/[\t\r\n]+/g, '');
 					} else if (set[i].getAttribute('href') || set[i].getAttribute('src')) {
 						this._schemaData[itemprop] = set[i].href? set[i].href: set[i].src;
 					}
@@ -103,12 +112,12 @@
 							itemprop = itemprops[j].getAttribute('itemprop') + j;
 						}
 						if (itemprops[j].getAttribute('content')) {
-							tmpStorage[prop][itemprop] = itemprops[j].getAttribute('content').replace(/(\t|\r|\n)/g,"");
+							tmpStorage[prop][itemprop] = itemprops[j].getAttribute('content').replace(/(\t|\r|\n)/g, '');
 						} else if (itemprops[j].getAttribute('href') || itemprops[j].getAttribute('src')) {
 							tmpStorage[prop][itemprop] = itemprops[j].href? itemprops[j].href: itemprops[j].src;
 						}
 						else {
-							tmpStorage[prop][itemprop] = itemprops[j].textContent.replace(/(\t|\r|\n)/g,"");
+							tmpStorage[prop][itemprop] = itemprops[j].textContent.replace(/(\t|\r|\n)/g, '');
 						}
 					}
 				}
@@ -126,31 +135,39 @@
 				setScope.call(this, itemscopes);
 		};
 
-		Metadog.prototype._mapToModel = function() {
+		Metadog.prototype._mapToModel = function(mappings) {
+			var json = false;
+			var opengraph = false;
+			var schema = false;
 
-			function setParam(ogParam, schemaParam, metaParam, optional) {
-				if (!optional) {
-					if (opengraph && this._openGraphData[ogParam]) {
-						this._metadata[metaParam] = this._openGraphData[ogParam];
+			function setParam(jsonParam, ogParam, schemaParam, metaParam, nestedKey) {
+				if (!nestedKey) {
+					if (json && this._jsonData[jsonParam]) {
+						this._metadata[metaParam] = this._jsonData[jsonParam];
 					} else if (schema && this._schemaData[schemaParam]) {
-							this._metadata[metaParam] = this._schemaData[schemaParam];
+						this._metadata[metaParam] = this._schemaData[schemaParam];
+					} else if (opengraph && this._openGraphData[ogParam]) {
+						this._metadata[metaParam] = this._openGraphData[ogParam];
 					} else {
-						this._metadata.extra.errors.push(metaParam + ' not found');
+						console.warn(metaParam + ' not found');
 					}
 				} else {
-					if (opengraph && this._openGraphData[ogParam]) {
-						this._metadata.extra[metaParam] = this._openGraphData[ogParam];
+					if (!this._metadata[nestedKey]) {
+						this._metadata[nestedKey] = {};
+					}
+					if (json && this._jsonData[jsonParam]) {
+						this._metadata[nestedKey][metaParam] = this._jsonData[jsonParam];
 					} else if (schema && this._schemaData[schemaParam]) {
-						this._metadata.extra[metaParam] = this._schemaData[schemaParam];
+						this._metadata[nestedKey][metaParam] = this._schemaData[schemaParam];
+					} else if (opengraph && this._openGraphData[ogParam]) {
+						this._metadata[nestedKey][metaParam] = this._openGraphData[ogParam];
 					} else {
-						this._metadata.extra.errors.push(metaParam + ' not found');
+						console.warn(metaParam + ' not found');
 					}
 				}
 			}
 
-			var opengraph = false;
-			var schema = false;
-
+			// Find the prominent schema in reverse
 			if (!isEmpty(this._openGraphData)) {
 				this._metadata.schema = this.schemaConst['_openGraphData'];
 				opengraph = true;
@@ -161,26 +178,24 @@
 				schema = true;
 			}
 
-			if (this._checkCanonical() ){
+			if (!isEmpty(this._jsonData)) {
+				this._metadata.schema = this.schemaConst['_direct'];
+				json = true;
+			}
+
+			if (this._checkCanonical()) {
 				this._metadata.url = this._checkCanonical();
 			} else if (opengraph) {
 				this._metadata.url = this._openGraphData['og:url'];
 			} else if (schema) {
 				this._metadata.url = this._schemaData.url;
 			} else {
-				this._metadata.extra.errors.push('url not found');
+				console.warn('url not found');
 			}
 
-			//get base parameters
-			setParam.apply(this, ['og:title', 'name', 'name']);
-			setParam.apply(this, ['og:description', 'description', 'description']);
-			setParam.apply(this, ['og:image', 'image', 'image']);
-			setParam.apply(this, ['og:type', 'type', 'type']);
-
-			//get extra parameters
-			setParam.apply(this, ['og:price', 'price', 'price', true]);
-			setParam.apply(this, ['og:priceCurrency', 'priceCurrency', 'priceCurrency', true]);
-			setParam.apply(this, ['og:availability', 'availability', 'availability', true]);
+			for (var i = 0; i < mappings.length; ++i) {
+				setParam.apply(this, mappings[i]);
+			}
 		};
 
 		Metadog.prototype._isEqual = function(arr1, arr2) {
@@ -198,10 +213,7 @@
 			return true;
 		};
 
-		Metadog.prototype._filter = function(propToCheck) {
-			// List of fields to ignore.
-			var ignored = ['created', 'updated', 'ip', 'brand', 'breadcrumb', '_itemscope'];
-
+		Metadog.prototype._filter = function(ignored, propToCheck) {
 			// Check the data passed in to see if we need to ignore that field.
 			return (ignored.indexOf(propToCheck) > 0 );
 		};
@@ -211,11 +223,11 @@
 		 *
 		 * @param proposed
 		 * @param current
+		 * @param filter
 		 * @param comparator
-		 * @param filters
 		 * @returns {Boolean}
 		 */
-		Metadog.prototype._deepCompare = function(proposed, current, comparator, filters) {
+		Metadog.prototype._deepCompare = function(proposed, current, filter, comparator) {
 			//TODO: currently checks against values directly. Need to implement check for Array types and Object types
 			//Objects will have the same method called on them recursively
 			var proposedProps = Object.getOwnPropertyNames(proposed);
@@ -228,7 +240,7 @@
 
 				var propToCheck = proposedProps[i];
 				//skips over ignored properties
-				if (filters(propToCheck))
+				if (filter(propToCheck))
 					continue;
 
 				var prop1 = proposed[propToCheck];
@@ -237,8 +249,8 @@
 					if (!comparator(prop1, prop2))
 						return false;
 				}
-				else if (typeof prop1 === "object") {
-					if (this._deepCompare(prop1, prop2, comparator, filters)){
+				else if (typeof prop1 === 'object') {
+					if (this._deepCompare(prop1, prop2, filter, comparator)) {
 						continue;
 					}
 					else {
@@ -260,25 +272,25 @@
 		 * @method deepCompare
 		 * @param {Object} proposed New Object to compare
 		 * @param {Object} current Current (or old) object to compare
+		 * @param {Function} filterIgnored Function the performs filtering on fields to ignore or an array of strings for the fields to ignore
 		 * @param {Function} comparator Function that performs the comparing
-		 * @param {Function} filters Function the performs filtering on fields to ignore
 		 * @returns {Boolean}
 		 */
-		Metadog.prototype.deepCompare = function(proposed, current, comparator, filters) {
-			// We need to make sure that comparator and filters is set as an object Function.
-			var theFilterType = {};
-			var myComparator = this._isEqual;
-			var myFilters = this._filter;
-
-			if (comparator && theFilterType.toString.call(comparator) === '[object Function]') {
-				myComparator = comparator;
+		Metadog.prototype.deepCompare = function(proposed, current, filterIgnored, comparator) {
+			// We need to make sure that comparator and filter is set as an object Function.
+			if (typeof filterIgnored !== 'function') {
+				var ignored;
+				if (filterIgnored && Object.getPrototypeOf(filterIgnored) === Array.prototype) {
+					ignored = filterIgnored;
+				}
+				filterIgnored = this._filter.bind(null, ignored);
 			}
 
-			if (filters && theFilterType.toString.call(filters) === '[object Function]') {
-				myFilters = filters;
+			if (typeof comparator !== 'function') {
+				comparator = this._isEqual;
 			}
 
-			return this._deepCompare(proposed, current, myComparator, myFilters);
+			return this._deepCompare(proposed, current, filterIgnored, comparator);
 		};
 
 		/**
@@ -299,7 +311,7 @@
 		module.exports = Metadog;
 	} else {
 		//  For AMD Support.
-		if (typeof define === 'function' && define.amd && (typeof window._metadogGlobal === 'undefined' ||  window._metadogGlobal !== true)) {
+		if (typeof define === 'function' && define.amd) {
 			define('metadog', [], function() {
 				return Metadog;
 			});
