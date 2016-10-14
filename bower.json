@@ -1,6 +1,6 @@
 {
   "name": "metadog",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Sniffs out and fetches open graph and schema.org metadata from webpages.",
   "keywords": [
     "opengraph",
