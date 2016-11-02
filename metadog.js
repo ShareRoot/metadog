@@ -233,9 +233,6 @@
 			var proposedProps = Object.getOwnPropertyNames(proposed);
 			var currentProps = Object.getOwnPropertyNames(current);
 
-			if (proposedProps.length !== currentProps.length)
-				return false;
-
 			for(var i = 0; i < proposedProps.length; i++) {
 
 				var propToCheck = proposedProps[i];
