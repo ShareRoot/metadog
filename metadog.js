@@ -16,7 +16,7 @@
 
 			this.schemaConst = {
 				'_none'          : 0,
-				'_direct'        : (1<<1),
+				'_json'          : (1<<1),
 				'_openGraphData' : (1<<2),
 				'_schemaData'    : (1<<3),
 				'_oembed'        : (1<<4),
@@ -179,7 +179,7 @@
 			}
 
 			if (!isEmpty(this._jsonData)) {
-				this._metadata.schema = this.schemaConst['_direct'];
+				this._metadata.schema = this.schemaConst['_json'];
 				json = true;
 			}
 
